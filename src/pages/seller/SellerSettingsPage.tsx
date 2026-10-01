@@ -29,6 +29,7 @@ import {
 } from '@/services/sellerSettingsService';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from 'react-i18next';
+import { useWhatsApp } from '@/context/WhatsAppContext';
 import {
   getWhatsAppStatus,
   getWhatsAppQr,
@@ -1034,7 +1035,9 @@ function WhatsAppTab() {
   const { user: currentUser } = useAuth();
   const isOwner = currentUser?.role === 'owner';
 
+  // Chatbot Status State
   const [status, setStatus] = useState<WhatsAppStatus | null>(null);
+  const { whatsappNumberDisplay, refetch: refetchWhatsAppNumber } = useWhatsApp();
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   
@@ -1046,7 +1049,33 @@ function WhatsAppTab() {
   
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Status Polling
+  // Owner Phone State
+  const [ownerProfile, setOwnerProfile] = useState<UserProfile | null>(null);
+  const [isEditingOwnerPhone, setIsEditingOwnerPhone] = useState(false);
+  const [ownerPhoneInput, setOwnerPhoneInput] = useState('');
+  const [isSavingOwnerPhone, setIsSavingOwnerPhone] = useState(false);
+  const [ownerPhoneError, setOwnerPhoneError] = useState<string | null>(null);
+
+  const { showToast } = useToast();
+
+  // Load Owner Profile
+  const loadOwnerProfile = async () => {
+    try {
+      const data = await getMyProfile();
+      setOwnerProfile(data);
+      setOwnerPhoneInput(data.phone_number || '');
+    } catch (err) {
+      console.error("Failed to load owner profile", err);
+    }
+  };
+
+  useEffect(() => {
+    if (isOwner) {
+      loadOwnerProfile();
+    }
+  }, [isOwner]);
+
+  // Chatbot Status Polling
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     let isActive = true;
@@ -1152,14 +1181,14 @@ function WhatsAppTab() {
     };
   }, [status?.keadaan, isOwner, t]);
 
-  const { showToast } = useToast();
 
-  const handleReset = async () => {
+  const handleResetChatbot = async () => {
     setShowConfirm(false);
     try {
       setIsResetting(true);
       setQrError(null);
       await resetWhatsAppNumber();
+      await refetchWhatsAppNumber();
       setIsPreparingQr(true);
       // Optimistic update
       setStatus((prev) => prev ? { ...prev, keadaan: 'terputus' } : null);
@@ -1168,6 +1197,30 @@ function WhatsAppTab() {
       showToast({ message: t('whatsapp.error_retry', 'Error connecting to WhatsApp. Retrying...'), type: 'error' });
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  const handleSaveOwnerPhone = async () => {
+    try {
+      setIsSavingOwnerPhone(true);
+      setOwnerPhoneError(null);
+      const updated = await updateMyProfile({ phone_number: ownerPhoneInput });
+      setOwnerProfile(updated);
+      setIsEditingOwnerPhone(false);
+      showToast({ message: t('whatsapp.owner_updated_success', 'Owner number updated successfully'), type: 'success' });
+    } catch (err: any) {
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (Array.isArray(detail)) {
+          setOwnerPhoneError(detail.map((d: any) => d.msg).join(', '));
+        } else {
+          setOwnerPhoneError(detail);
+        }
+      } else {
+        setOwnerPhoneError(t('common.error', 'An error occurred'));
+      }
+    } finally {
+      setIsSavingOwnerPhone(false);
     }
   };
 
@@ -1180,8 +1233,10 @@ function WhatsAppTab() {
 
   return (
     <div className="space-y-6">
+      
+      {/* SECTION 1: CHATBOT WHATSAPP */}
       <div className="rounded-xl bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-sm font-bold uppercase text-[#6f5448]">WhatsApp System</h3>
+        <h3 className="mb-4 text-sm font-bold uppercase text-[#6f5448]">{t('whatsapp.chatbot_section_title', 'WhatsApp Chatbot')}</h3>
         
         {errorStatus && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -1192,19 +1247,19 @@ function WhatsAppTab() {
         <div className="flex flex-col gap-4">
           {status?.keadaan === 'tersambung' && (
             <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h4 className="font-bold text-green-800">Connected</h4>
-                  <p className="text-sm text-green-700">Phone Number: {status.nomor || '—'}</p>
-                  <p className="text-sm text-green-700">Profile Name: {status.profile_name || '—'}</p>
+                  <h4 className="font-bold text-green-800">{t('whatsapp.status_connected', 'Connected')}</h4>
+                  <p className="text-sm text-green-700">{t('whatsapp.chatbot_phone', 'Chatbot WhatsApp Number')}: {whatsappNumberDisplay || '—'}</p>
+                  <p className="text-sm text-green-700">{t('whatsapp.profile_name', 'Profile')}: {status.profile_name || '—'}</p>
                 </div>
                 {isOwner && (
                   <button
                     onClick={() => setShowConfirm(true)}
                     disabled={isResetting || isPreparingQr}
-                    className="rounded-lg bg-[#d85b30] px-4 py-2 text-sm font-semibold text-white hover:bg-[#c04e28] disabled:opacity-50"
+                    className="shrink-0 rounded-lg bg-[#d85b30] px-4 py-2 text-sm font-semibold text-white hover:bg-[#c04e28] disabled:opacity-50"
                   >
-                    Change Number
+                    {t('whatsapp.change_chatbot_number', 'Change Chatbot Number')}
                   </button>
                 )}
               </div>
@@ -1215,16 +1270,16 @@ function WhatsAppTab() {
             <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h4 className="font-bold text-yellow-800">Disconnected</h4>
-                  <p className="text-sm text-yellow-700">Chatbot is currently unavailable</p>
+                  <h4 className="font-bold text-yellow-800">{t('whatsapp.status_disconnected', 'Disconnected')}</h4>
+                  <p className="text-sm text-yellow-700">{t('whatsapp.chatbot_unavailable', 'Chatbot is currently unavailable')}</p>
                 </div>
                 {isOwner && (
                   <button
-                    onClick={handleReset}
+                    onClick={handleResetChatbot}
                     disabled={isResetting}
                     className="rounded-lg bg-[#d85b30] px-4 py-2 text-sm font-semibold text-white hover:bg-[#c04e28] disabled:opacity-50"
                   >
-                    Show QR Code
+                    {t('whatsapp.show_qr', 'Show QR Code')}
                   </button>
                 )}
               </div>
@@ -1233,14 +1288,13 @@ function WhatsAppTab() {
 
           {isPreparing && (
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-center">
-              <p className="font-semibold text-blue-800">Preparing QR Code...</p>
-              <p className="text-sm text-blue-600">Loading</p>
+              <p className="font-semibold text-blue-800">{t('whatsapp.status_preparing_qr', 'Preparing QR Code...')}</p>
             </div>
           )}
 
           {status?.keadaan === 'menunggu_scan' && !isPreparingQr && (
             <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 text-center flex flex-col items-center">
-              <h4 className="mb-2 font-bold text-yellow-800">Waiting for Scan</h4>
+              <h4 className="mb-2 font-bold text-yellow-800">{t('whatsapp.status_waiting_scan', 'Waiting for Scan')}</h4>
               
               {qrError && isOwner && (
                 <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -1251,7 +1305,7 @@ function WhatsAppTab() {
               {isOwner && qrUrl && (
                 <>
                   <p className="mb-4 text-sm text-yellow-700">
-                    Please scan the QR code below to connect your WhatsApp number.
+                    {t('whatsapp.qr_instruction', 'Please scan the QR code below to connect your WhatsApp number.')}
                   </p>
                   <div className="bg-white p-4 rounded-xl shadow-sm inline-block">
                     <img src={qrUrl} alt="WhatsApp QR Code" className="w-64 h-64 object-contain" />
@@ -1263,20 +1317,109 @@ function WhatsAppTab() {
         </div>
       </div>
 
+      {/* SECTION 2: OWNER WHATSAPP */}
+      {isOwner && (
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-sm font-bold uppercase text-[#6f5448]">{t('whatsapp.owner_section_title', 'Owner WhatsApp')}</h3>
+          
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-[#4b2417]">{t('whatsapp.owner_phone', 'Owner WhatsApp Number')}</p>
+                <p className="text-sm text-gray-700 mt-1">{ownerProfile?.phone_number || '—'}</p>
+                
+                <div className="mt-2 flex items-center gap-2 text-sm text-green-700">
+                  <span className="flex items-center justify-center bg-green-100 text-green-700 rounded-full h-5 w-5">✓</span>
+                  <span className="font-semibold">{t('whatsapp.registered_owner', 'Registered Owner')}</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('whatsapp.owner_recognition_info', 'Messages from this registered Owner number can be recognized by the chatbot as Owner.')}
+                </p>
+              </div>
+              
+              <button
+                onClick={() => setIsEditingOwnerPhone(true)}
+                className="shrink-0 rounded-lg border border-[#d0bfaf] px-4 py-2 text-sm font-semibold text-[#d85b30] hover:bg-gray-50"
+              >
+                {t('whatsapp.change_owner_number', 'Change Owner Number')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODALS */}
       <ConfirmationModal
         isOpen={showConfirm}
-        title="Confirm Change Number"
-        message="Are you sure you want to change the WhatsApp number? This will disconnect the current number."
-        confirmText="Yes, Change Number"
-        cancelText="Cancel"
-        onConfirm={handleReset}
+        title={t('whatsapp.confirm_change_chatbot_title', 'Confirm Change Chatbot Number')}
+        message={t('whatsapp.confirm_change_chatbot_desc', 'Are you sure you want to change the WhatsApp number? This will disconnect the current number.')}
+        confirmText={t('whatsapp.btn_yes_change', 'Yes, Change Number')}
+        cancelText={t('whatsapp.btn_cancel', 'Cancel')}
+        onConfirm={handleResetChatbot}
         onCancel={() => setShowConfirm(false)}
         isDestructive={false}
       />
+      
+      {/* OWNER PHONE EDIT MODAL */}
+      <SellerModal
+        isOpen={isEditingOwnerPhone}
+        onClose={() => {
+          setIsEditingOwnerPhone(false);
+          setOwnerPhoneInput(ownerProfile?.phone_number || '');
+          setOwnerPhoneError(null);
+        }}
+        title={t('whatsapp.change_owner_number', 'Change Owner Number')}
+        size="md"
+        footer={
+          <div className="flex justify-end gap-3 w-full">
+            <button
+              onClick={() => {
+                setIsEditingOwnerPhone(false);
+                setOwnerPhoneInput(ownerProfile?.phone_number || '');
+                setOwnerPhoneError(null);
+              }}
+              className="rounded-lg border border-gray-300 px-6 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              {t('whatsapp.btn_cancel', 'Cancel')}
+            </button>
+            <button
+              onClick={handleSaveOwnerPhone}
+              disabled={isSavingOwnerPhone}
+              className="rounded-lg bg-[#d85b30] px-6 py-2 text-sm font-semibold text-white hover:bg-[#c04e28] disabled:opacity-50"
+            >
+              {isSavingOwnerPhone ? '...' : t('whatsapp.save', 'Save')}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {ownerPhoneError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {ownerPhoneError}
+            </div>
+          )}
+          
+          <div>
+            <label className="block text-sm font-semibold text-[#4b2417] mb-1">
+              {t('whatsapp.owner_phone', 'Owner WhatsApp Number')}
+            </label>
+            <input
+              type="tel"
+              value={ownerPhoneInput}
+              onChange={(e) => setOwnerPhoneInput(e.target.value)}
+              placeholder="e.g., 628123456789"
+              className="w-full rounded-lg border border-[#d0bfaf] px-4 py-2 outline-none focus:border-[#d85b30]"
+            />
+          </div>
+          <p className="text-xs text-gray-500">
+             {t('whatsapp.owner_recognition_info', 'Messages from this registered Owner number can be recognized by the chatbot as Owner.')}
+          </p>
+        </div>
+      </SellerModal>
+
     </div>
   );
 }
-
 // ============================================================
 // KOMPONEN UTAMA SETTINGS
 // ============================================================

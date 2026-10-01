@@ -22,6 +22,11 @@ export async function getWhatsAppQr(): Promise<Blob> {
 
 export async function resetWhatsAppNumber(): Promise<void> {
   await apiClient.post('/admin/whatsapp/ganti-nomor');
+  clearPublicContactCache();
+}
+
+export function clearPublicContactCache(): void {
+  publicContactPromise = null;
 }
 
 let publicContactPromise: Promise<{ whatsapp: string }> | null = null;

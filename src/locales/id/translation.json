@@ -113,7 +113,21 @@
     "qr_instruction": "Buka WhatsApp di HP baru → Perangkat tertaut → Tautkan perangkat → scan QR ini.",
     "chatbot_unavailable": "Chatbot dan verifikasi WhatsApp di website tidak jalan",
     "qr_unavailable": "Layanan WhatsApp sedang tidak tersedia",
-    "error_retry": "Gagal mereset WhatsApp. Silakan coba lagi."
+    "error_retry": "Gagal mereset WhatsApp. Silakan coba lagi.",
+    "chatbot_section_title": "WhatsApp Chatbot",
+    "chatbot_phone": "Nomor WhatsApp Chatbot",
+    "owner_section_title": "WhatsApp Owner",
+    "owner_phone": "Nomor WhatsApp Owner",
+    "owner_recognition_info": "Pesan dari nomor Owner yang terdaftar ini dapat dikenali chatbot sebagai Owner.",
+    "registered_owner": "Owner Terdaftar",
+    "change_chatbot_number": "Ubah Nomor Chatbot",
+    "change_owner_number": "Ubah Nomor Owner",
+    "confirm_change_chatbot_title": "Konfirmasi Ubah Nomor Chatbot",
+    "confirm_change_chatbot_desc": "Apakah Anda yakin ingin mengubah nomor WhatsApp chatbot? Ini akan memutuskan nomor saat ini.",
+    "btn_yes_change": "Ya, Ubah Nomor",
+    "btn_cancel": "Batal",
+    "save": "Simpan",
+    "owner_updated_success": "Nomor Owner berhasil diperbarui"
   },
   "finance": {
     "title": "Laporan Keuangan",

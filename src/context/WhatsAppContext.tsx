@@ -6,6 +6,7 @@ interface WhatsAppContextType {
   whatsappNumberDisplay: string | null;
   whatsappUrl: string | null;
   loading: boolean;
+  refetch: () => Promise<void>;
 }
 
 const WhatsAppContext = createContext<WhatsAppContextType>({
@@ -13,27 +14,26 @@ const WhatsAppContext = createContext<WhatsAppContextType>({
   whatsappNumberDisplay: null,
   whatsappUrl: null,
   loading: true,
+  refetch: async () => {},
 });
 
 export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchNumber = async () => {
+    try {
+      const { whatsapp } = await getPublicContact();
+      setWhatsappNumber(whatsapp);
+    } catch (error) {
+      console.error('Failed to fetch public WhatsApp number', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let isMounted = true;
-    const fetchNumber = async () => {
-      try {
-        const { whatsapp } = await getPublicContact();
-        if (isMounted) setWhatsappNumber(whatsapp);
-      } catch (error) {
-        console.error('Failed to fetch public WhatsApp number', error);
-        // Fallback handled by backend, but just in case it fails completely
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
     fetchNumber();
-    return () => { isMounted = false; };
   }, []);
 
   const whatsappNumberDisplay = whatsappNumber
@@ -46,7 +46,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     : null;
 
   return (
-    <WhatsAppContext.Provider value={{ whatsappNumber, whatsappNumberDisplay, whatsappUrl, loading }}>
+    <WhatsAppContext.Provider value={{ whatsappNumber, whatsappNumberDisplay, whatsappUrl, loading, refetch: fetchNumber }}>
       {children}
     </WhatsAppContext.Provider>
   );

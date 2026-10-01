@@ -113,7 +113,21 @@
     "qr_instruction": "Open WhatsApp on the new phone → Linked devices → Link a device → scan this QR.",
     "chatbot_unavailable": "Chatbot and WhatsApp verification on the website are currently down",
     "qr_unavailable": "WhatsApp service is currently unavailable",
-    "error_retry": "Failed to reset WhatsApp. Please try again."
+    "error_retry": "Failed to reset WhatsApp. Please try again.",
+    "chatbot_section_title": "WhatsApp Chatbot",
+    "chatbot_phone": "Chatbot WhatsApp Number",
+    "owner_section_title": "Owner WhatsApp",
+    "owner_phone": "Owner WhatsApp Number",
+    "owner_recognition_info": "Messages from this registered Owner number can be recognized by the chatbot as Owner.",
+    "registered_owner": "Registered Owner",
+    "change_chatbot_number": "Change Chatbot Number",
+    "change_owner_number": "Change Owner Number",
+    "confirm_change_chatbot_title": "Confirm Change Chatbot Number",
+    "confirm_change_chatbot_desc": "Are you sure you want to change the WhatsApp number? This will disconnect the current number.",
+    "btn_yes_change": "Yes, Change Number",
+    "btn_cancel": "Cancel",
+    "save": "Save",
+    "owner_updated_success": "Owner number updated successfully"
   },
   "finance": {
     "title": "Financial Reports",
